@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><script>var __mr='all',__md='wtd85afh.mule.page';document.addEventListener('DOMContentLoaded', function () {
+  var BAR_HEIGHT = 38;
+
+  // --- detect page theme ---
+  var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  // fallback: sample body/html background color
+  if (!isDark) {
+    try {
+      var sample = getComputedStyle(document.body).backgroundColor;
+      if (sample === 'rgba(0, 0, 0, 0)' || sample === 'transparent') {
+        sample = getComputedStyle(document.documentElement).backgroundColor;
+      }
+      if (sample && sample !== 'rgba(0, 0, 0, 0)' && sample !== 'transparent') {
+        var m = sample.match(/\d+/g);
+        if (m) {
+          var brightness = (parseInt(m[0]) * 299 + parseInt(m[1]) * 587 + parseInt(m[2]) * 114) / 1000;
+          isDark = brightness < 128;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // --- shared CSS (always injected into <head>) ---
+  var SHARED_CSS = '<style>' +
+    '@keyframes mulepage-svg-glow-dark{0%,100%{color:#ffffff}50%{color:#3b82f6}}' +
+    '@keyframes mulepage-svg-glow-light{0%,100%{color:#000000}50%{color:#3b82f6}}' +
+    '.mulepage-anim-dark{animation:mulepage-svg-glow-dark 2.5s ease-in-out infinite}' +
+    '.mulepage-anim-light{animation:mulepage-svg-glow-light 2.5s ease-in-out infinite}' +
+    '.mulepage-btn-dark{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:0;transition:all 0.2s ease}' +
+    '.mulepage-btn-dark:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.15)}' +
+    '.mulepage-btn-light{background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.08);border-radius:0;transition:all 0.2s ease}' +
+    '.mulepage-btn-light:hover{background:rgba(0,0,0,0.08);border-color:rgba(0,0,0,0.15)}' +
+    '.mulepage-close-dark{color:rgba(255,255,255,0.3);transition:color 0.2s ease}' +
+    '.mulepage-close-dark:hover{color:#ffffff}' +
+    '.mulepage-close-light{color:rgba(0,0,0,0.3);transition:color 0.2s ease}' +
+    '.mulepage-close-light:hover{color:#000000}' +
+    '#mulepage-footer-link{transition:opacity 0.2s ease}' +
+    '#mulepage-footer-link:hover{opacity:0.7}' +
+    '.mulepage-float{transition:box-shadow 0.2s ease;will-change:box-shadow}' +
+    '.mulepage-float:hover{box-shadow:0 6px 20px rgba(0,0,0,0.12),0 2px 6px rgba(0,0,0,0.08)}' +
+    '.mulepage-float-close{display:inline-flex;align-items:center;justify-content:center;max-width:0;margin-left:0;overflow:hidden;opacity:0;transition:max-width 0.2s ease,margin-left 0.2s ease,opacity 0.15s ease;padding:0;border:none;background:none;cursor:pointer;font-size:16px;line-height:1;font-weight:300;height:16px;will-change:max-width,opacity}' +
+    '.mulepage-float:hover .mulepage-float-close{max-width:14px;margin-left:4px;opacity:1}' +
+    '</style>';
+
+  // always inject shared CSS into <head> so it survives banner removal
+  document.head.insertAdjacentHTML('beforeend', SHARED_CSS);
+
+  // --- SVG icon (shared, rx=0 for sharp corners) ---
+  var ICON16 = '<svg width="16" height="16" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+    '<rect width="36" height="36" rx="0" fill="#FBF9F6"/><g clip-path="url(#c_top)">' +
+    '<path d="M6.387 21.732v8.895H18.762V28.5h2.32v1.16h8.121V28.5h1.16v-7.928h-1.16v-1.16h-4.64v-1.16h-1.16v-1.16h-1.16v-1.16h-1.16v-1.16h-1.16v-1.16h3.287v-1.934h3.48V9.357H16.442v3.48h-2.128V6.07h-2.32v2.127H9.674v3.48H7.547v10.055H6.387Z" fill="#000"/>' +
+    '<path d="M13.154 21.732v-4.447h1.16v-1.16h4.448v4.447h-1.16v1.16h-4.448Z" fill="#fff"/>' +
+    '<rect x="15.281" y="18.252" width="2.32" height="2.32" fill="#000"/>' +
+    '<path d="M21.082 27.34v-5.608h1.16v-1.16h5.801v1.16h1.16v5.608h-1.16V28.5h-5.801v-1.16h-1.16Z" fill="#fff"/>' +
+    '<path d="M26.883 21.732h-2.32v1.16h1.16v1.16h1.16v-2.32Z" fill="#000"/>' +
+    '<path d="M22.242 24.053v2.32h1.16v1.16h3.48v-1.16h-2.32v-1.16h-1.16v-1.16h-1.16Z" fill="#000"/>' +
+    '</g><defs><clipPath id="c_top"><rect width="24.75" height="24.75" fill="#fff" transform="translate(6 6)"/></clipPath></defs></svg>';
+
+  var ICON16_FOOT = ICON16.replace(/c_top/g, 'c_foot');
+
+  // --- SVG brand text ---
+  var BRAND_SVG_DARK = '<svg class="mulepage-anim-dark" width="58" height="16" viewBox="0 0 58 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="user-select:none;">' +
+    '<text x="0" y="13" font-family="inherit" font-weight="600" font-size="13" fill="currentColor">MuleRun</text></svg>';
+
+  var BRAND_SVG_LIGHT = '<svg id="mulepage-footer-svg-text" class="mulepage-anim-light" width="56" height="15" viewBox="0 0 58 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="user-select:none;">' +
+    '<text x="0" y="13" font-family="inherit" font-weight="600" font-size="13" fill="currentColor">MuleRun</text></svg>';
+
+  // --- banner (adapts to page theme) ---
+  var bannerBg = isDark ? '#050505' : '#ffffff';
+  var bannerBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  var bannerColor = isDark ? '#fff' : '#000';
+  var bannerSubColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)';
+  var bannerTextColor = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.65)';
+  var bannerArrowColor = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+  var bannerSepColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+  var bannerBtnClass = isDark ? 'mulepage-btn-dark' : 'mulepage-btn-light';
+  var bannerCloseClass = isDark ? 'mulepage-close-dark' : 'mulepage-close-light';
+  var bannerBrandSvg = isDark ? BRAND_SVG_DARK : BRAND_SVG_LIGHT.replace('mulepage-footer-svg-text', 'mulepage-bar-svg-text');
+
+  var BANNER = '<div id="mulepage-bar" dir="ltr" style="position:fixed;top:0;left:0;width:100%;height:' + BAR_HEIGHT + 'px;' +
+    'background:' + bannerBg + ';border-bottom:1px solid ' + bannerBorder + ';color:' + bannerColor + ';' +
+    'display:flex;align-items:center;justify-content:center;gap:10px;' +
+    'font-family:Inter,-apple-system,BlinkMacSystemFont,\'Segoe UI\',\'Helvetica Neue\',sans-serif;' +
+    'font-size:13px;z-index:2147483647;letter-spacing:0.02em;">' +
+    '<span style="color:' + bannerSubColor + ';font-size:12px;text-transform:uppercase;letter-spacing:0.05em;">Built with</span>' +
+    '<span id="mulepage-bar-link" class="' + bannerBtnClass + '" style="display:inline-flex;align-items:center;gap:6px;' +
+    'padding:3px 10px 3px 6px;cursor:pointer;">' +
+    ICON16 + bannerBrandSvg + '</span>' +
+    '<span style="color:' + bannerSepColor + ';margin:0 2px;">|</span>' +
+    '<span style="color:' + bannerTextColor + ';">Create your own website in minutes</span>' +
+    '<span style="color:' + bannerArrowColor + ';margin-left:-2px;">\u2192</span>' +
+    '<button id="mulepage-bar-close" class="' + bannerCloseClass + '" style="position:absolute;right:16px;background:none;border:none;border-radius:0;' +
+    'font-size:18px;cursor:pointer;line-height:1;padding:4px;font-weight:300;">\u00d7</button>' +
+    '</div>';
+
+  // --- floating widget (bottom-right, glassmorphism) ---
+  var floatBg = isDark ? 'rgba(30,30,30,0.65)' : 'rgba(255,255,255,0.65)';
+  var floatBorder = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+  var floatShadow = isDark
+    ? '0 4px 16px rgba(0,0,0,0.4),0 1px 4px rgba(0,0,0,0.3)'
+    : '0 4px 16px rgba(0,0,0,0.08),0 1px 4px rgba(0,0,0,0.06)';
+  var floatBrandSvg = isDark ? BRAND_SVG_LIGHT.replace('mulepage-anim-light', 'mulepage-anim-dark') : BRAND_SVG_LIGHT;
+  var floatCloseColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)';
+  var floatCloseHover = isDark ? '#ffffff' : '#000000';
+  var byColor = isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+
+  var FOOTER = '<div id="mulepage-footer" dir="ltr" class="mulepage-float" style="position:fixed !important;bottom:16px !important;right:16px !important;z-index:2147483646;' +
+    'display:inline-flex;align-items:center;padding:6px 12px 6px 6px;cursor:pointer;' +
+    'background:' + floatBg + ';border:1px solid ' + floatBorder + ';border-radius:4px;' +
+    'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);' +
+    'box-shadow:' + floatShadow + ';' +
+    'font-family:Inter,-apple-system,BlinkMacSystemFont,\'Segoe UI\',\'Helvetica Neue\',sans-serif;">' +
+    '<span id="mulepage-footer-link" style="display:inline-flex;align-items:center;">' +
+    ICON16_FOOT +
+    '<span style="font-size:11px;font-weight:400;margin:0 4px 0 6px;color:' + byColor + ';">by</span>' +
+    floatBrandSvg +
+    '</span>' +
+    '</div>';
+
+  // --- insert banner (only when mode is "all") ---
+  if (__mr === 'all') {
+    document.body.insertAdjacentHTML('afterbegin', BANNER);
+
+    // brand link click
+    document.getElementById('mulepage-bar-link').addEventListener('click', function () {
+      window.open('https://mulerun.com?utm_source=pages&utm_medium=banner&utm_campaign=pages_branding&utm_content=top_bar', '_blank', 'noopener');
+    });
+
+    // replace favicon
+    var oldIcons = document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]');
+    for (var k = 0; k < oldIcons.length; k++) oldIcons[k].remove();
+    var fi = document.createElement('link');
+    fi.rel = 'icon'; fi.type = 'image/svg+xml'; fi.href = 'https://mule.page/favicon.svg';
+    document.head.appendChild(fi);
+
+    // push down normal-flow content (accumulate on existing padding-top)
+    var origPT = parseFloat(getComputedStyle(document.body).paddingTop) || 0;
+    document.body.style.paddingTop = (origPT + BAR_HEIGHT) + 'px';
+
+    // push down all existing position:fixed elements
+    var all = document.querySelectorAll('*');
+    var shifted = [];
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.id && el.id.indexOf('mulepage') === 0) continue;
+      var cs = getComputedStyle(el);
+      if (cs.position === 'fixed') {
+        var t = parseFloat(cs.top);
+        if (isNaN(t)) t = 0;
+        el.style.top = (t + BAR_HEIGHT) + 'px';
+        shifted.push({ el: el, orig: t });
+      }
+    }
+
+    // close handler: restore everything
+    document.getElementById('mulepage-bar-close').addEventListener('click', function () {
+      document.getElementById('mulepage-bar').remove();
+      document.body.style.paddingTop = origPT + 'px';
+      for (var j = 0; j < shifted.length; j++) {
+        shifted[j].el.style.top = shifted[j].orig + 'px';
+      }
+    });
+  }
+
+  // --- insert floating widget (only when __mr is set) ---
+  if (__mr) {
+    document.body.insertAdjacentHTML('beforeend', FOOTER);
+
+    // footer link click → open mulerun.com
+    var footerLink = document.getElementById('mulepage-footer-link');
+    if (footerLink) {
+      footerLink.addEventListener('click', function () {
+        window.open('https://mulerun.com/chat?utm_source=pages&utm_medium=banner&utm_campaign=pages_branding&utm_content=bottom_bar', '_blank', 'noopener');
+      });
+    }
+
+    // paid users (footer-only mode): add close button on hover
+    if (__mr === 'footer') {
+      var floatEl = document.getElementById('mulepage-footer');
+      if (floatEl) {
+        var closeBtn = document.createElement('button');
+        closeBtn.className = 'mulepage-float-close';
+        closeBtn.style.color = floatCloseColor;
+        closeBtn.textContent = '\u00d7';
+        closeBtn.addEventListener('mouseenter', function () { closeBtn.style.color = floatCloseHover; });
+        closeBtn.addEventListener('mouseleave', function () { closeBtn.style.color = floatCloseColor; });
+        closeBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          floatEl.remove();
+        });
+        floatEl.appendChild(closeBtn);
+      }
+    }
+  }
+
+  // --- inject canonical link (all users) ---
+  var canon = document.createElement('link');
+  canon.rel = 'canonical';
+  canon.href = 'https://' + location.hostname + '/';
+  document.head.appendChild(canon);
+
+  // --- inject og meta tags (all users) ---
+  var ogDomain = __md;
+  var ogTitle = document.title || ogDomain;
+  var ogTags = [
+    ['og:title', ogTitle],
+    ['og:url', 'https://' + location.hostname + '/'],
+    ['og:type', 'website'],
+    ['og:image', 'https://mule.page/og/' + ogDomain + '.webp']
+  ];
+  for (var n = 0; n < ogTags.length; n++) {
+    var existing = document.querySelector('meta[property="' + ogTags[n][0] + '"]');
+    if (existing) existing.remove();
+    var meta = document.createElement('meta');
+    meta.setAttribute('property', ogTags[n][0]);
+    meta.setAttribute('content', ogTags[n][1]);
+    document.head.appendChild(meta);
+  }
+});
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>崇祯直聘 · 明末官场沉浮模拟器</title>
+<meta name="description" content="一款明末官场生存模拟器，核心机制致敬《王权》(Reigns)的四方势力动态平衡。你将扮演末明知县，在皇权、阉党、清流与百姓的夹缝中极限周旋。">
+<meta property="og:title" content="崇祯直聘 · 明末官场沉浮模拟器">
+<meta property="og:description" content="大厦将倾，泥沙俱下。这盘棋没有对错——你只是在选，活成怎样的人。">
+<meta property="og:image" content="cover-landscape.webp">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="cover-landscape.webp">
+<script>var APP_VERSION='d4aa62f6';</script>
+<link rel="preload" href="qrcode-author-wx.webp" as="image">
+<link rel="preload" href="https://fonts.loli.net/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;700;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.loli.net/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;700;900&display=swap" rel="stylesheet"></noscript>
+<link rel="stylesheet" href="styles_d12b160b.css">
+</head>
+<body class="paper-bg">
+
+<!-- TITLE SCREEN -->
+<div id="title-screen" class="screen active">
+  <button class="title-sound-toggle" onclick="toggleSound()" id="soundToggle">音乐：开</button>
+  <!-- layered background -->
+  <div class="title-bg-layer title-bg-gradient"></div>
+  <div class="title-bg-layer title-bg-texture"></div>
+  <div class="title-bg-layer title-bg-ink"></div>
+  <div class="title-bg-layer title-bg-image"></div>
+  <div class="title-bg-layer title-bg-mountains"></div>
+  <div class="title-bg-layer title-bg-vignette"></div>
+  <!-- particle canvas -->
+  <canvas id="titleParticles"></canvas>
+  <!-- ambient glow -->
+  <div class="title-ambient-glow"></div>
+  <!-- ink strokes -->
+  <div class="title-ink-stroke-top"></div>
+  <div class="title-ink-stroke-bot"></div>
+  <!-- main frame -->
+  <div class="title-frame fade-in">
+    <div class="title-seal" style="display:none">敕</div>
+    <div class="title-main">崇祯直聘</div>
+    <div class="title-sub">明末官场沉浮模拟器</div>
+    <div class="title-tagline">"大厦将倾，泥沙俱下。这盘棋没有对错——你只是在选，活成怎样的人。"</div>
+    <div class="title-buttons">
+      <button class="title-btn" onclick="goToSelect()">开 始 仕 途</button>
+      <button class="title-btn" onclick="loadGame()">读 取 存 档</button>
+    </div>
+  </div>
+  <div class="title-version-topleft">V0.1 Alpha</div>
+  <div class="title-bottom-bar">
+    <button class="title-follow-btn" onclick="showFollowModal()">关注更新 & 反馈</button>
+    <button class="title-follow-btn" onclick="window.open('https://susugogo.cn','_blank')">作者主页</button>
+  </div>
+</div>
+
+<!-- CHARACTER SELECT SCREEN -->
+<div id="select-screen" class="screen paper-bg">
+  <div class="select-header"><h2>铨 选 出 身</h2></div>
+  <div class="select-intro">先选个出身吧，毕竟在上位者眼里，诸位大人的"斤两"从一开始便标好了价。</div>
+  <div class="char-grid" id="charGrid"></div>
+</div>
+
+<!-- MAIN GAME SCREEN -->
+<div id="game-screen" class="screen paper-bg">
+  <div class="game-topbar">
+    <div>
+      <span class="topbar-rank" id="topbarRank" onclick="showRankTree()">正七品 · 知县</span>
+    </div>
+    <div class="topbar-turn" id="topbarTurn">崇祯元年 · 第一卷</div>
+    <div class="topbar-actions">
+      <button class="topbar-btn" onclick="toggleSound()" id="soundToggle2">音乐</button>
+      <button class="topbar-btn" onclick="saveGame()">存档</button>
+      <button class="topbar-btn" onclick="loadGame()">读档</button>
+      <button class="topbar-btn" onclick="toggleFullscreen()" id="fullscreenBtn">全屏</button>
+    </div>
+  </div>
+  <div class="game-layout">
+    <div class="panel-left">
+      <div class="panel-section">
+        <div class="panel-section-title">个 人 能 力</div>
+        <div id="statsPanel"></div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-section-title">角 色 标 签</div>
+        <div class="tags-container" id="tagsPanel"></div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-section-title">履 历 档 案</div>
+        <div class="player-info-panel" id="playerInfoPanel"></div>
+      </div>
+    </div>
+    <div class="panel-center" id="eventPanel">
+      <!-- Events render here -->
+    </div>
+    <div class="panel-right">
+      <div class="panel-section">
+        <div class="panel-section-title">五 方 态 度</div>
+        <div id="attitudesPanel"></div>
+      </div>
+    </div>
+    <button class="mobile-drawer-toggle" id="drawerToggle" onclick="toggleMobileDrawer()">
+      <span class="drawer-toggle-arrow">▲</span> 数 值 面 板
+    </button>
+  </div>
+</div>
+
+<!-- ENDING SCREEN -->
+<div id="ending-screen" class="screen paper-bg">
+  <div id="endingContent"></div>
+</div>
+
+<!-- MODAL -->
+<div id="gameModal" class="game-modal">
+  <div class="modal-backdrop" onclick="closeModal()"></div>
+  <div class="modal-panel">
+    <div class="modal-body"></div>
+  </div>
+</div>
+
+<!-- Title screen particles (self-contained IIFE) -->
+<script>
+(function initTitleParticles(){
+  const canvas=document.getElementById('titleParticles');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  let particles=[];
+  let w,h,animId;
+  function resize(){
+    w=canvas.width=canvas.offsetWidth;
+    h=canvas.height=canvas.offsetHeight;
+  }
+  function createParticle(){
+    const type=Math.random();
+    if(type<0.6){
+      return{x:Math.random()*w,y:Math.random()*h,
+        vx:(Math.random()-0.5)*0.3,vy:-0.15-Math.random()*0.3,
+        size:Math.random()*2+0.5,alpha:Math.random()*0.25+0.05,
+        life:1,decay:0.0005+Math.random()*0.001,
+        color:`rgba(197,165,90,`};
+    } else if(type<0.85){
+      return{x:Math.random()*w,y:h+10,
+        vx:(Math.random()-0.5)*0.5,vy:-0.4-Math.random()*0.6,
+        size:Math.random()*1.5+0.5,alpha:Math.random()*0.4+0.1,
+        life:1,decay:0.001+Math.random()*0.002,
+        color:`rgba(200,100,30,`};
+    } else {
+      return{x:Math.random()*w,y:Math.random()*h,
+        vx:(Math.random()-0.5)*0.15,vy:(Math.random()-0.5)*0.15,
+        size:Math.random()*1+0.3,alpha:Math.random()*0.15+0.03,
+        life:1,decay:0.0003+Math.random()*0.0005,
+        color:`rgba(245,230,200,`};
+    }
+  }
+  function init(){
+    resize();
+    particles=[];
+    for(let i=0;i<60;i++) particles.push(createParticle());
+  }
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];
+      p.x+=p.vx;p.y+=p.vy;
+      p.vx+=Math.sin(Date.now()*0.001+i)*0.005;
+      p.life-=p.decay;
+      if(p.life<=0||p.y<-20||p.x<-20||p.x>w+20){
+        particles[i]=createParticle();continue;
+      }
+      const a=p.alpha*p.life;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+      ctx.fillStyle=p.color+a+')';
+      ctx.fill();
+    }
+    animId=requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',resize);
+  init();draw();
+  window._stopTitleParticles=function(){cancelAnimationFrame(animId);};
+})();
+</script>
+
+<!-- Game scripts (static loading for maximum compatibility) -->
+<script src="data/constants_d12b160b.js"></script>
+<script src="data/events_d12b160b.js"></script>
+<script src="data/branches_d12b160b.js"></script>
+<script src="engine_d12b160b.js"></script>
+
+</body>
+</html>
